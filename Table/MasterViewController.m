@@ -1,9 +1,10 @@
 #import "MasterViewController.h"
 #import "DetailViewController.h"
+#import "Article.h"
 
 @interface MasterViewController ()
 
-@property NSMutableArray *_objects;
+@property NSMutableArray *_articles;
 
 @end
 
@@ -17,9 +18,14 @@ NSString *const kUrl = @"http://crazy-dev.wheely.com";
 
 - (void)viewDidLoad {
 	[super viewDidLoad];
+	
+	self._articles = [[NSMutableArray alloc] init];
 
 	UIBarButtonItem *addButton = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemRefresh target:self action:@selector(refresh:)];
 	[self.navigationItem setRightBarButtonItem:addButton animated:YES];
+	
+	[NSTimer scheduledTimerWithTimeInterval:60.0 target:self selector:@selector(refresh:) userInfo:nil repeats:YES];
+	[self refresh:nil];
 }
 
 - (void)didReceiveMemoryWarning {
@@ -27,7 +33,6 @@ NSString *const kUrl = @"http://crazy-dev.wheely.com";
 }
 
 - (void)refresh:(id)sender {
-	
 	NSURLRequest *request = [NSURLRequest requestWithURL:[NSURL URLWithString:kUrl]];
 	[NSURLConnection connectionWithRequest:request delegate:self];
 }
@@ -37,8 +42,8 @@ NSString *const kUrl = @"http://crazy-dev.wheely.com";
 - (void)prepareForSegue:(UIStoryboardSegue *)segue sender:(id)sender {
 	if ([[segue identifier] isEqualToString:@"showDetail"]) {
 	    NSIndexPath *indexPath = [self.tableView indexPathForSelectedRow];
-	    NSDate *object = self._objects[indexPath.row];
-	    [[segue destinationViewController] setDetailItem:object];
+	    Article *art = self._articles[indexPath.row];
+	    [[segue destinationViewController] setDetailItem:art];
 	}
 }
 
@@ -49,14 +54,14 @@ NSString *const kUrl = @"http://crazy-dev.wheely.com";
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-	return self._objects.count;
+	return self._articles.count;
 }
 
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
 	UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"Cell" forIndexPath:indexPath];
 
-	NSDate *object = self._objects[indexPath.row];
-	cell.textLabel.text = [object description];
+	Article *art = self._articles[indexPath.row];
+	cell.textLabel.text = [art title];
 	return cell;
 }
 
@@ -66,7 +71,7 @@ NSString *const kUrl = @"http://crazy-dev.wheely.com";
 
 - (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)editingStyle forRowAtIndexPath:(NSIndexPath *)indexPath {
 	if (editingStyle == UITableViewCellEditingStyleDelete) {
-	    [self._objects removeObjectAtIndex:indexPath.row];
+	    [self._articles removeObjectAtIndex:indexPath.row];
 	    [tableView deleteRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationFade];
 	}
 }
@@ -87,8 +92,18 @@ NSString *const kUrl = @"http://crazy-dev.wheely.com";
 }
 
 - (void)connectionDidFinishLoading:(NSURLConnection *)connection {
-	NSString * responseString = [[NSString alloc] initWithData:_responseData encoding:NSUTF8StringEncoding];
-	NSLog(@"%@", responseString);
+	NSError *error;
+	NSArray *response = [NSJSONSerialization JSONObjectWithData:_responseData options:0 error:&error];
+	
+	[self._articles removeAllObjects];
+	
+	for (NSDictionary * item in response) {
+		Article * art = [[Article alloc] init];
+		art.title = [item valueForKey:@"title"];
+		art.text = [item valueForKey:@"text"];
+		[self._articles addObject:art];
+		[self.tableView reloadData];
+	}
 }
 
 - (void)connection:(NSURLConnection *)connection didFailWithError:(NSError *)error {

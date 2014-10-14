@@ -18,7 +18,7 @@
 
 - (void)configureView {
 	if (self.detailItem) {
-	    self.detailDescriptionLabel.text = [self.detailItem description];
+	    self.detailedText.text = [self.detailItem text];
 	}
 }
 
